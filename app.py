@@ -162,7 +162,32 @@ def _generate_advice_from_openai(major):
 
 @app.post('/students/<int:student_id>/advice')
 def generate_advice(student_id):
-    pass  # TODO: Replace with your implementation
+    #Look up the student by ID
+    student = students.get(student_id)
+    if not student:
+        return {"error": "Student not found"}, 404
+    
+    #Check that the student has a major
+    major = student.get("major", "").strip()
+    if not major:
+        return {"error": "Student major is required to generate advice"}, 400
+    
+    #Call openai w/ error handling
+    try:
+        advice = _generate_advice_from_openai(major)
+    except Exception as e:
+        app.logger.error(f"Failed to generate advice for student {student_id}: {str(e)}")
+        return {"error": "Upstream AI service failed"}, 502
+    
+    #save advice into student dict
+    student["advice"] = advice
+    
+    #return 200
+    return {
+        "id": student["id"],
+        "major": student["major"],
+        "advice": advice
+    }, 200
 
 
 # --- Endpoint B: GET /students/<id>/advice ---
@@ -177,12 +202,26 @@ def generate_advice(student_id):
 
 @app.get('/students/<int:student_id>/advice')
 def get_advice(student_id):
-    pass  # TODO: Replace with your implementation
+    #look up the student ID
+    student = students.get(student_id)
+    if not student:
+        return {"error": "Student not found"}, 404
+    
+    #check if the student has advice field
+    advice = student.get("advice", "").strip()
+    if not advice:
+        return {"error": "Advice not found for this student"}, 404
+    
+    #return 200 with the required fields
+    return {
+        "id": student["id"],
+        "advice": advice
+    }, 200
 
-
+if __name__ == '__main__':
+    app.run(debug=True, port=5001)
 # =============================================================================
 # RUN
 # =============================================================================
 
-if __name__ == '__main__':
-    app.run(debug=True)
+
